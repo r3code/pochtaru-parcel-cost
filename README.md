@@ -30,4 +30,7 @@ Add this line to it:
 ```
 AddDefaultCharset utf-8
 ```
+
+### Push to Github
+To push code to Github do http://www.jimcode.org/2012/12/setting-git-github-cloud9-ide-pushing-live-server/
     
