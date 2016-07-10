@@ -1,6 +1,9 @@
 <?php
 
     namespace r3code\Pochtaru;
+
+    // Debug mode
+    define('DEBUG',false);
     
     class PostOfficeOperationError extends \Exception { }
     
@@ -81,7 +84,7 @@
                 'productPageState' => new \ArrayObject() // обязателен в запросе, пустой объект {}
             );
             $jsonRequestEncoded = json_encode($jsonRequest);
-            //echo "REQUEST: $jsonRequestEncoded<br><br>";
+            if (DEBUG) echo "REQUEST: $jsonRequestEncoded<br><br>";
             
             //Initiate cURL.
             $ch = curl_init(self::ParcelCalcApiUrl);
@@ -97,23 +100,28 @@
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); //timeout in seconds 
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
             
-            //echo "<br />Запрос стоимости...";
+            if (DEBUG) echo "<br />Запрос стоимости...";
             //Execute the request
             $jsonResponse = curl_exec($ch);
-            //echo 'JSON RESP: ' . $jsonResponse;
             if(curl_exec($ch) === false) {
                 throw new PostOfficeOperationError('Произошла ошибка при обращении к серверу Почты России:' . curl_error($ch), curl_errno($ch));
             } else {
-                //echo "<br /> Запрос обработан.";
-                //echo "<br />СЕРВЕР ОТВЕТИЛ: \n";
-                //echo $jsonResponse;
                 $response = json_decode($jsonResponse, true);
-                //echo "<br />json_decode: <br />";
-                //print_r($response);
+                if (DEBUG) {
+                  $debugMsg = "<br /> Запрос обработан." 
+                   . "<br />СЕРВЕР ОТВЕТИЛ: \n"
+                   . $jsonResponse
+                   . "<br />json_decode: <br />"
+                   . print_r($response, true);
+                   echo $debugMsg;
+                }                
+               
                 $responseData = $response['data'];
                 $requestStatus = $response['status'];
-                if( $requestStatus != 'OK' ) {
-                    throw new PostOfficeOperationError('Cервер Почты России не смог обработать запрос');
+                if( !preg_match("/OK|200/", $requestStatus) ) {
+                    $errorMsg='Cервер Почты России не смог обработать запрос';
+                    if (DEBUG)  $errorMsg .= ' DEBUG::' . $debugMsg;
+                    throw new PostOfficeOperationError($errorMsg);
                 } 
                 $costInfo = $responseData['minCostResults']['standard'];
                 if( !!!$costInfo ) {
