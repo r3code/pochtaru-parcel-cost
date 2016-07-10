@@ -1,8 +1,9 @@
-# pochtaru-parcel-cost
+# Pochta.ru parcel delivery calculator
 The php wrapper for the new pochta.ru/parcel delivery cost calculator.
 
 ## To run tests
-Call ```sh testall.sh``` it will start PHPUnit and run tests.
+Call ```sh testall.sh``` it will start PHPUnit and run tests. 
+[![Build Status](https://travis-ci.org/r3code/pochtaru-parcel-cost.svg?branch=master)](https://travis-ci.org/r3code/pochtaru-parcel-cost)
 
 ## Setup Cloud9 Environment
 
