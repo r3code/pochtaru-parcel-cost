@@ -1,6 +1,9 @@
 # pochtaru-parcel-cost
 The php wrapper for the new pochta.ru/parcel delivery cost calculator.
 
+## To run tests
+Call ```sh testall.sh``` it will start PHPUnit and run tests.
+
 ## Setup Cloud9 Environment
 
 ### Install PHPUnit 4.8 for Cloud9 php5.5.9 run
