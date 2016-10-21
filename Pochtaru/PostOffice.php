@@ -9,12 +9,12 @@
     
     //@Immutable
     class PostOffice {
-        const ParcelCalcApiUrl = 'https://www.pochta.ru/portal-portlet/delegate/calculator/v1/api/delivery.time.cost.get'; 
-        const PostingTypeVPO = 'VPO';
-        const WayForwardEarth = 'EARTH';
-        const PostingKindParcel = 'PARCEL';
-        const ParcelKindStandard = 'STANDARD';
-        const PostingCategoryOrdinary = 'ORDINARY';
+        const PARCEL_CALC_API_URL = 'https://www.pochta.ru/portal-portlet/delegate/calculator/v1/api/delivery.time.cost.get'; 
+        const POSTING_TYPE_VPO = 'VPO';
+        const WAY_FORWARD_EARTH = 'EARTH';
+        const POSTING_KIND_PARCEL = 'PARCEL';
+        const PARCEL_KIND_STANDARD = 'STANDARD';
+        const POSTING_CATEGORY_ORDINARY = 'ORDINARY';
         
         private $postOfficeZip;
         
@@ -66,7 +66,20 @@
             
             // JSON запрос
             $jsonRequest = array(
-                // это поле запроса точной стоимости посылки
+                // form 10.2016 pochta.ru requires field "costCalculationEntity" to be present in query
+                'costCalculationEntity' => array(
+                    'postingType' => $postingType,
+                    'zipCodeFrom' => $this->postOfficeZip,
+                    'zipCodeTo' => $destinationPostOfficeZip,
+                    'postalCodesFrom' => [ $this->postOfficeZip ],
+                    'postalCodesTo' => [ $destinationPostOfficeZip ],
+                    'weightRange' => [ 100, $weightGramms ],
+                    'wayForward' => $wayForward,
+                    'postingKind' => $postingKind,
+                    'postingCategory' => $postingCategory,
+                    'parcelKind' => $parcelKind
+                    ),
+                // get precise parcel cost
                 'minimumCostEntity' => array(
                     'standard' => array(
                          'postingType' => $postingType,
@@ -85,9 +98,9 @@
             );
             $jsonRequestEncoded = json_encode($jsonRequest);
             if (DEBUG) echo "REQUEST: $jsonRequestEncoded<br><br>";
-            
+
             //Initiate cURL.
-            $ch = curl_init(self::ParcelCalcApiUrl);
+            $ch = curl_init(self::PARCEL_CALC_API_URL);
             //Tell cURL that we want to send a POST request.
             curl_setopt($ch, CURLOPT_POST, 1);
             //Attach our encoded JSON string to the POST fields.
@@ -142,8 +155,8 @@
         // Результат: стоимость в рублях 
         function CalcStandardParcelDeliveryCost($weightGramms, $destinationPostOfficeZip) {
             return $this->CalcMailingDeliveryCost($weightGramms, 
-                $destinationPostOfficeZip, self::PostingTypeVPO, self::WayForwardEarth, 
-                self::PostingKindParcel, self::PostingCategoryOrdinary, self::ParcelKindStandard);   
+                $destinationPostOfficeZip, self::POSTING_TYPE_VPO, self::WAY_FORWARD_EARTH, 
+                self::POSTING_KIND_PARCEL, self::POSTING_CATEGORY_ORDINARY, self::PARCEL_KIND_STANDARD);   
         }
     };
 ?>

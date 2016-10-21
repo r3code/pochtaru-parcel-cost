@@ -10,10 +10,10 @@ class PostOfficeTest extends PHPUnit_Framework_TestCase
     /** @test */
     public function CalcParcelCostOK()
     {
-        $zipFrom = '105082'; // Moscow
+        $zipFrom = '119002'; // Moscow
         $postOffice = new r3code\Pochtaru\PostOffice($zipFrom);  
         $weightGramms = 1400;
-        $zipTo = '142432';
+        $zipTo = '675000';
         $parcelCost = $postOffice->CalcStandardParcelDeliveryCost($weightGramms, $zipTo);
         
         $this->assertGreaterThan(0, $parcelCost);
@@ -24,52 +24,52 @@ class PostOfficeTest extends PHPUnit_Framework_TestCase
         $this->setExpectedException('r3code\Pochtaru\PostOfficeOperationError', 
             'Неправильный формат индекса');
         
-        $zipInvalid = '1 05081'; // 
+        $zipInvalid = '6 75000'; // 
         $postOffice = new r3code\Pochtaru\PostOffice($zipInvalid);  
     }
     
     /** @test  */
     public function CalcParcelCostFailAtNonExistingZipTo() {
-        $this->setExpectedException('r3code\Pochtaru\PostOfficeOperationError', 
-            'Запрос выполнен Сервером Почты России с ошибками: Индекс места получения 105081 не существует. (1321), null (1361)');
-        
-        $zipFrom = '105082'; 
+        $zipFrom = '119002'; 
         $weightGramms = 1400;
         $zipToNotExists = '105081'; // не существует такой индекс
+        // pochta.ru changed reply phrase
+        $this->setExpectedException('r3code\Pochtaru\PostOfficeOperationError', 
+            'Запрос выполнен Сервером Почты России с ошибками: Индекс места назначения 105081 не существует. (1321),null (1361)');
         $postOffice = new r3code\Pochtaru\PostOffice($zipFrom);  
         $parcelCost = $postOffice->CalcStandardParcelDeliveryCost($weightGramms, 
             $zipToNotExists);
+            print("$parcelCost " + $parcelCost);
     }
     
     /** @test  */
     public function CalcParcelCostFailAtWrongZipFrom() {
-        $this->setExpectedException('r3code\Pochtaru\PostOfficeOperationError', 
-            'Неправильный формат индекса КОМУ, укажите 6 цифр, вместо 1 05081');
-        
-        $zipFrom = '105082';
+        $zipFrom = '119002';
         $weightGramms = 1400;
-        $zipToNotExists = '1 05081'; // ошибка формата данных
+        $zipToInvalidFormat = '6 75000'; // ошибка формата данных
         $postOffice = new r3code\Pochtaru\PostOffice($zipFrom);  
-        $parcelCost = $postOffice->CalcStandardParcelDeliveryCost($weightGramms, $zipToNotExists);
+        $this->setExpectedException('r3code\Pochtaru\PostOfficeOperationError', 
+            'Неправильный формат индекса КОМУ, укажите 6 цифр, вместо '+ $zipToInvalidFormat);
+        $parcelCost = $postOffice->CalcStandardParcelDeliveryCost($weightGramms, $zipToInvalidFormat);
     }
     
     /** @test  */
     public function CalcParcelCostFailAtZeroWeight() {
         $this->setExpectedException('r3code\Pochtaru\PostOfficeOperationError', 
             'Не указан вес посылки');
-        $zipFrom = '105082';
-        $zipToNotExists = '142432';
+        $zipFrom = '119002';
+        $zipTo = '142432';
         $weightGramms = 0; // ошибка - вес 0
         $postOffice = new r3code\Pochtaru\PostOffice($zipFrom);  
-        $parcelCost = $postOffice->CalcStandardParcelDeliveryCost($weightGramms, $zipToNotExists);
+        $parcelCost = $postOffice->CalcStandardParcelDeliveryCost($weightGramms, $zipTo);
     }
     
     /** @test  */
     public function CalcParcelCostFailNoWeightValue() {
         $this->setExpectedException('r3code\Pochtaru\PostOfficeOperationError', 
             'Не указан вес посылки');
-        $zipFrom = '105082';
-        $zipToNotExists = '142432';
+        $zipFrom = '119002';
+        $zipToNotExists = '675000';
         $weightGramms = ''; // ошибка - вес 0
         $postOffice = new r3code\Pochtaru\PostOffice($zipFrom);  
         $parcelCost = $postOffice->CalcStandardParcelDeliveryCost($weightGramms, $zipToNotExists);
