@@ -35,7 +35,7 @@ class PostOfficeTest extends PHPUnit_Framework_TestCase
         $zipToNotExists = '105081'; // не существует такой индекс
         // pochta.ru changed reply phrase
         $this->setExpectedException('r3code\Pochtaru\PostOfficeOperationError', 
-            'Запрос выполнен Сервером Почты России с ошибками: Индекс места назначения 105081 не существует. (1321),null (1361)');
+            'Запрос выполнен Сервером Почты России с ошибками: Индекс места назначения 105081 не существует. (1321)');
         $postOffice = new r3code\Pochtaru\PostOffice($zipFrom);  
         $parcelCost = $postOffice->CalcStandardParcelDeliveryCost($weightGramms, 
             $zipToNotExists);
