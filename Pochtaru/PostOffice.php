@@ -5,6 +5,12 @@
     // Debug mode
     define('DEBUG',false);
     
+    function debug_msg($msg) {
+        if (DEBUG) {
+            echo $msg;     
+        }        
+    }
+    
     class PostOfficeOperationError extends \Exception { }
     
     //@Immutable
@@ -24,6 +30,100 @@
                     'Неправильный формат индекса');
             }
             $this->postOfficeZip = $postOfficeZip;
+        }
+        // raises PostOfficeOperationError if curl error found
+        private function DoRequestData($jsonRequestEncoded) {
+            //Initiate cURL.
+            $curlObj = curl_init(self::PARCEL_CALC_API_URL);
+            //Tell cURL that we want to send a POST request.
+            curl_setopt($curlObj, CURLOPT_POST, 1);
+            //Attach our encoded JSON string to the POST fields.
+            curl_setopt($curlObj, CURLOPT_POSTFIELDS, $jsonRequestEncoded);
+            //Set the content type to application/json
+            curl_setopt($curlObj, CURLOPT_HTTPHEADER, array(
+                'Content-Type: application/json; charset=UTF-8',
+                'X-Requested-With: XMLHttpRequest')
+            ); // возможно 'Content-Length: ' . strlen($jsonRequestEncoded) 
+            curl_setopt($curlObj, CURLOPT_CONNECTTIMEOUT, 10); //timeout in seconds 
+            curl_setopt($curlObj, CURLOPT_RETURNTRANSFER, TRUE);   
+            //Execute the request
+            try {
+                $jsonResponse = curl_exec($curlObj);
+                if ($jsonResponse === false) 
+                    throw new PostOfficeOperationError('Произошла ошибка при обращении к серверу Почты России:' 
+                    . curl_error($curlObj), curl_errno($curlObj));
+            } finally {
+                curl_close($curlObj);    
+            }
+        }
+        // raises PostOfficeOperationError if prams invalid
+        private function CheckParcelParams($weightGramms, $destPostOfficeZip) {
+            $weightInvalid = !!!$weightGramms or !preg_match('/\d+/i', $weightGramms) 
+                or $weightGramms == 0;   
+            if( $weightInvalid ) {
+                throw new PostOfficeOperationError('Не указан вес посылки');
+            }
+            $zipInvalid = !preg_match('/\d{6}/i', $destPostOfficeZip);
+            if( $zipInvalid ) {
+                throw new PostOfficeOperationError(
+                    sprintf('Неправильный формат индекса КОМУ, укажите 6 цифр, вместо %s', 
+                    $destPostOfficeZip));
+            }    
+        }
+        // returns json string
+        private function PrepareRequest($weightGramms, $destPostOfficeZip, 
+            $postingType, $wayForward, $postingKind, $postingCategory, 
+            $parcelKind) {
+            // JSON запрос
+            $jsonRequest = array(
+                // form 10.2016 pochta.ru requires field "costCalculationEntity" to be present in query
+                'costCalculationEntity' => array(
+                    'postingType' => $postingType,
+                    'zipCodeFrom' => $this->postOfficeZip,
+                    'zipCodeTo' => $destPostOfficeZip,
+                    'postalCodesFrom' => [ $this->postOfficeZip ],
+                    'postalCodesTo' => [ $destPostOfficeZip ],
+                    'weightRange' => [ 100, $weightGramms ],
+                    'wayForward' => $wayForward,
+                    'postingKind' => $postingKind,
+                    'postingCategory' => $postingCategory,
+                    'parcelKind' => $parcelKind
+                    ),
+                // get precise parcel cost
+                'minimumCostEntity' => array(
+                    'standard' => array(
+                         'postingType' => $postingType,
+                         'wayForward' => $wayForward,
+                         'weight' => $weightGramms,
+                         'zipCodeFrom' => $this->postOfficeZip,
+                         'zipCodeTo' => $destPostOfficeZip,
+                         'postingKind' => $postingKind,
+                         'postingCategory' => $postingCategory,
+                         'parcelKind' => $parcelKind,
+                         'postalCodesFrom' => [ $this->postOfficeZip ],
+                         'postalCodesTo' => [ $destPostOfficeZip ]
+                        )
+                    ),
+                // обязателен в запросе, пустой объект {}
+                'productPageState' => new \ArrayObject() 
+            );
+            $jsonRequestEncoded = json_encode($jsonRequest);
+            return $jsonRequestEncoded;
+        }
+        // raises exception if error
+        private function CheckResponseErrors($requestStatus, $costInfo) {
+            if( !preg_match("/OK|200/", $requestStatus) ) {
+                $errorMsg='Cервер Почты России не смог обработать запрос';
+                throw new PostOfficeOperationError($errorMsg);
+            }    
+            if( !!!$costInfo ) {
+                throw new PostOfficeOperationError('Неверные параметры запроса. Cервер Почты России вернул пустой ответ');   
+            }
+            $calcErrors = $costInfo['errors'];
+            if( count($calcErrors) > 0 ) {
+                throw new PostOfficeOperationError('Запрос выполнен Сервером Почты России с ошибками: ' 
+                    . join(', ', $calcErrors));
+            }
         }
         
         function GetPostingTypes() {
@@ -51,112 +151,47 @@
         }
 
         
-        function CalcMailingDeliveryCost($weightGramms, $destinationPostOfficeZip, 
-            $postingType, $wayForward, $postingKind, $postingCategory, $parcelKind) {
-            
-            if( !!!$weightGramms or !preg_match('/\d+/i', $weightGramms) 
-                or $weightGramms == 0 ) {
-                throw new PostOfficeOperationError('Не указан вес посылки');
-            }
-            if( !preg_match('/\d{6}/i', $destinationPostOfficeZip) ) {
-                throw new PostOfficeOperationError(
-                    sprintf('Неправильный формат индекса КОМУ, укажите 6 цифр, вместо %s', 
-                    $destinationPostOfficeZip));
-            }
-            
+        function CalcMailingDeliveryCost($weightGramms, $destPostOfficeZip, 
+            $postingType, $wayForward, $postingKind, $postingCategory, 
+            $parcelKind) {
+            // raises an exception if fails
+            $this->CheckParcelParams($weightGramms, $destPostOfficeZip);
             // JSON запрос
-            $jsonRequest = array(
-                // form 10.2016 pochta.ru requires field "costCalculationEntity" to be present in query
-                'costCalculationEntity' => array(
-                    'postingType' => $postingType,
-                    'zipCodeFrom' => $this->postOfficeZip,
-                    'zipCodeTo' => $destinationPostOfficeZip,
-                    'postalCodesFrom' => [ $this->postOfficeZip ],
-                    'postalCodesTo' => [ $destinationPostOfficeZip ],
-                    'weightRange' => [ 100, $weightGramms ],
-                    'wayForward' => $wayForward,
-                    'postingKind' => $postingKind,
-                    'postingCategory' => $postingCategory,
-                    'parcelKind' => $parcelKind
-                    ),
-                // get precise parcel cost
-                'minimumCostEntity' => array(
-                    'standard' => array(
-                         'postingType' => $postingType,
-                         'wayForward' => $wayForward,
-                         'weight' => $weightGramms,
-                         'zipCodeFrom' => $this->postOfficeZip,
-                         'zipCodeTo' => $destinationPostOfficeZip,
-                         'postingKind' => $postingKind,
-                         'postingCategory' => $postingCategory,
-                         'parcelKind' => $parcelKind,
-                         'postalCodesFrom' => [ $this->postOfficeZip ],
-                         'postalCodesTo' => [ $destinationPostOfficeZip ]
-                        )
-                    ),
-                'productPageState' => new \ArrayObject() // обязателен в запросе, пустой объект {}
-            );
-            $jsonRequestEncoded = json_encode($jsonRequest);
-            if (DEBUG) echo "REQUEST: $jsonRequestEncoded<br><br>";
-
-            //Initiate cURL.
-            $ch = curl_init(self::PARCEL_CALC_API_URL);
-            //Tell cURL that we want to send a POST request.
-            curl_setopt($ch, CURLOPT_POST, 1);
-            //Attach our encoded JSON string to the POST fields.
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonRequestEncoded);
-            //Set the content type to application/json
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                'Content-Type: application/json; charset=UTF-8',
-                'X-Requested-With: XMLHttpRequest')
-            ); // возможно 'Content-Length: ' . strlen($jsonRequestEncoded) 
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10); //timeout in seconds 
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+            $jsonRequestEncoded = $this->PrepareRequest($weightGramms, 
+                $destPostOfficeZip, $postingType, $wayForward, $postingKind, 
+                $postingCategory, $parcelKind);
             
-            if (DEBUG) echo "<br />Запрос стоимости...";
-            //Execute the request
-            $jsonResponse = curl_exec($ch);
-            if(curl_exec($ch) === false) {
-                throw new PostOfficeOperationError('Произошла ошибка при обращении к серверу Почты России:' . curl_error($ch), curl_errno($ch));
-            } else {
-                $response = json_decode($jsonResponse, true);
-                if (DEBUG) {
-                  $debugMsg = "<br /> Запрос обработан." 
-                   . "<br />СЕРВЕР ОТВЕТИЛ: \n"
-                   . $jsonResponse
-                   . "<br />json_decode: <br />"
-                   . print_r($response, true);
-                   echo $debugMsg;
-                }                
-               
-                $responseData = $response['data'];
-                $requestStatus = $response['status'];
-                if( !preg_match("/OK|200/", $requestStatus) ) {
-                    $errorMsg='Cервер Почты России не смог обработать запрос';
-                    if (DEBUG)  $errorMsg .= ' DEBUG::' . $debugMsg;
-                    throw new PostOfficeOperationError($errorMsg);
-                } 
-                $costInfo = $responseData['minCostResults']['standard'];
-                if( !!!$costInfo ) {
-                    throw new PostOfficeOperationError('Неверные параметры запроса. Cервер Почты России вернул пустой ответ');   
-                }
-                $calcErrors = $costInfo['errors'];
-                if( count($calcErrors) > 0 ) {
-                    throw new PostOfficeOperationError('Запрос выполнен Сервером Почты России с ошибками: ' . join(', ', $calcErrors));
-                }
-                $parcelCost = $costInfo['cost'];
-                return $parcelCost;
-            }
-            curl_close($ch);  
-                    
+            debug_msg("REQUEST: $jsonRequestEncoded<br><br>");
+            debug_msg("<br />Request cost...");
+            // raises Exception if failed
+            $jsonResponse = $this->DoRequestData($jsonRequestEncoded);
+           
+            $response = json_decode($jsonResponse, true);
+            debug_msg("<br /> Request done." 
+               . "<br />Server Response: \n"
+               . $jsonResponse
+               . "<br />json_decode: <br />"
+               . print_r($response, true));
+           
+            $responseData = $response['data'];
+            $requestStatus = $response['status'];
+            $costInfo = $responseData['minCostResults']['standard'];
+            $this->CheckResponseErrors($requestStatus, $costInfo);
+            $parcelCost = $costInfo['cost'];
+            return $parcelCost;
+            
         }
         
-        // Рассчет стоимости доставки обычной посылки по России наземным путем
-        // Результат: стоимость в рублях 
-        function CalcStandardParcelDeliveryCost($weightGramms, $destinationPostOfficeZip) {
+        // Calculate cost delivery by land transportation in Russia
+        // ru_RU::Рассчет стоимости доставки обычной посылки по России наземным путем
+        // @result: cost in russian rubles
+        function CalcStandardParcelDeliveryCost($weightGramms, 
+            $destPostOfficeZip) {
             return $this->CalcMailingDeliveryCost($weightGramms, 
-                $destinationPostOfficeZip, self::POSTING_TYPE_VPO, self::WAY_FORWARD_EARTH, 
-                self::POSTING_KIND_PARCEL, self::POSTING_CATEGORY_ORDINARY, self::PARCEL_KIND_STANDARD);   
+                $destPostOfficeZip, self::POSTING_TYPE_VPO, 
+                self::WAY_FORWARD_EARTH, 
+                self::POSTING_KIND_PARCEL, self::POSTING_CATEGORY_ORDINARY, 
+                self::PARCEL_KIND_STANDARD);   
         }
     };
 ?>
