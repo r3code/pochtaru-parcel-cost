@@ -23,6 +23,7 @@
         const POSTING_CATEGORY_ORDINARY = 'ORDINARY';
         
         private $postOfficeZip;
+        private $curlObj;
         
         function __construct($postOfficeZip){
             if( !preg_match('/\d{6}/i', $postOfficeZip) ) {
@@ -30,12 +31,16 @@
                     'Неправильный формат индекса');
             }
             $this->postOfficeZip = $postOfficeZip;
+            //Initiate cURL.
+            $this->curlObj = curl_init(self::PARCEL_CALC_API_URL);
+        }
+        function __destruct() {
+            curl_close($this->curlObj);      
         }
         // raises PostOfficeOperationError if curl error found
         private function DoRequestData($jsonRequestEncoded) {
             $requestTimeoutSec = 10;
-            //Initiate cURL.
-            $curlObj = curl_init(self::PARCEL_CALC_API_URL);
+            $curlObj = $this->curlObj;
             //Tell cURL that we want to send a POST request.
             curl_setopt($curlObj, CURLOPT_POST, 1);
             //Attach our encoded JSON string to the POST fields.
@@ -48,14 +53,10 @@
             curl_setopt($curlObj, CURLOPT_CONNECTTIMEOUT, $requestTimeoutSec); //timeout in seconds 
             curl_setopt($curlObj, CURLOPT_RETURNTRANSFER, TRUE);   
             //Execute the request
-            try {
-                $jsonResponse = curl_exec($curlObj);
-                if ($jsonResponse === false) 
-                    throw new PostOfficeOperationError('Произошла ошибка при обращении к серверу Почты России:' 
-                    . curl_error($curlObj), curl_errno($curlObj));
-            } finally {
-                curl_close($curlObj);    
-            }
+            $jsonResponse = curl_exec($curlObj);
+            if ($jsonResponse === false) 
+                throw new PostOfficeOperationError('Произошла ошибка при обращении к серверу Почты России:' 
+                . curl_error($curlObj), curl_errno($curlObj));
             return $jsonResponse;
         }
         // raises PostOfficeOperationError if prams invalid
