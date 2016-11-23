@@ -3,7 +3,7 @@
     namespace r3code\Pochtaru;
 
     // Debug mode
-    define('DEBUG',false);
+    define('DEBUG', false);
     
     function debug_msg($msg) {
         if (DEBUG) {
@@ -55,6 +55,7 @@
             } finally {
                 curl_close($curlObj);    
             }
+            return $jsonResponse;
         }
         // raises PostOfficeOperationError if prams invalid
         private function CheckParcelParams($weightGramms, $destPostOfficeZip) {
@@ -113,7 +114,9 @@
         // raises exception if error
         private function CheckResponseErrors($requestStatus, $costInfo) {
             if( !preg_match("/OK|200/", $requestStatus) ) {
-                $errorMsg='Cервер Почты России не смог обработать запрос';
+                debug_msg('Request ERROR, status ' . $requestStatus);
+                $errorMsg='Cервер Почты России не смог обработать запрос. Ошибка: ' 
+                    . $requestStatus;
                 throw new PostOfficeOperationError($errorMsg);
             }    
             if( !!!$costInfo ) {
