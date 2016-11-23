@@ -33,6 +33,7 @@
         }
         // raises PostOfficeOperationError if curl error found
         private function DoRequestData($jsonRequestEncoded) {
+            $requestTimeoutSec = 10;
             //Initiate cURL.
             $curlObj = curl_init(self::PARCEL_CALC_API_URL);
             //Tell cURL that we want to send a POST request.
@@ -44,7 +45,7 @@
                 'Content-Type: application/json; charset=UTF-8',
                 'X-Requested-With: XMLHttpRequest')
             ); // возможно 'Content-Length: ' . strlen($jsonRequestEncoded) 
-            curl_setopt($curlObj, CURLOPT_CONNECTTIMEOUT, 10); //timeout in seconds 
+            curl_setopt($curlObj, CURLOPT_CONNECTTIMEOUT, $requestTimeoutSec); //timeout in seconds 
             curl_setopt($curlObj, CURLOPT_RETURNTRANSFER, TRUE);   
             //Execute the request
             try {
