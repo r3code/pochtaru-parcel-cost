@@ -49,7 +49,7 @@ class PostOfficeTest extends PHPUnit_Framework_TestCase
         $zipToInvalidFormat = '6 75000'; // ошибка формата данных
         $postOffice = new r3code\Pochtaru\PostOffice($zipFrom);  
         $this->expectException('r3code\Pochtaru\PostOfficeOperationError');
-        $this->expectExceptionMessage('Неправильный формат индекса КОМУ, укажите 6 цифр, вместо '+ $zipToInvalidFormat);
+        $this->expectExceptionMessage('Неправильный формат индекса КОМУ, укажите 6 цифр, вместо 6 75000');
         $parcelCost = $postOffice->CalcStandardParcelDeliveryCost($weightGramms, $zipToInvalidFormat);
     }
     
