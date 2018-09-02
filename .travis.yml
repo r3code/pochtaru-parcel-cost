@@ -1,6 +1,8 @@
 language: php
 before_script:
   - curl -sSfL -o ~/.phpenv/versions/hhvm/bin/phpunit https://phar.phpunit.de/phpunit-5.7.phar
+  - curl -s -o $HOME/.phpenv/versions/5.5/bin/phpunit https://phar.phpunit.de/phpunit-old.phar
+  - chmod +x $HOME/.phpenv/versions/5.5/bin/phpunit
 php:
   - '5.4'
   - '5.5'
