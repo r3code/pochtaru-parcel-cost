@@ -1,7 +1,7 @@
 language: php
 before_script:	
   - curl -sSfL -o ~/.phpenv/versions/hhvm/bin/phpunit https://phar.phpunit.de/phpunit-5.7.phar
-   chmod +x ~/.phpenv/versions/hhvm/bin/phpunit
+  - chmod +x ~/.phpenv/versions/hhvm/bin/phpunit
   - curl -sSfL -o $HOME/.phpenv/versions/7.0/bin/phpunit https://phar.phpunit.de/phpunit-5.7.phar		
   - chmod +x $HOME/.phpenv/versions/7.0/bin/phpunit
 php:
