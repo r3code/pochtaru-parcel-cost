@@ -2,15 +2,6 @@
 
     namespace r3code\Pochtaru;
 
-    // Debug mode
-    define('DEBUG', false);
-    
-    function debug_msg($msg) {
-        if (DEBUG) {
-            echo $msg;     
-        }        
-    }
-    
     class PostOfficeOperationError extends \Exception { }
     
     //@Immutable
@@ -24,6 +15,7 @@
         
         private $postOfficeZip;
         private $curlObj;
+        private $DEBUG = false;    
         
         function __construct($postOfficeZip){
             if( !preg_match('/\d{6}/i', $postOfficeZip) ) {
@@ -36,6 +28,12 @@
         }
         function __destruct() {
             curl_close($this->curlObj);      
+        }                
+        
+        function debug_msg($msg) {
+            if ($this->DEBUG) {
+                echo 'DEBUG::' . $msg;     
+            }        
         }
         // raises PostOfficeOperationError if curl error found
         private function DoRequestData($jsonRequestEncoded) {
